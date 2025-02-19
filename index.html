@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>강화 시뮬레이션 (시각화)</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      max-width: 700px;
+      line-height: 1.4;
+    }
+    label {
+      display: inline-block;
+      width: 50px;
+      font-weight: bold;
+    }
+    .prob-input, .target-input {
+      margin-bottom: 10px;
+    }
+    #log {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      max-height: 400px;
+      overflow-y: auto;
+      background: #fafafa;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+    }
+    .highlight {
+      font-weight: bold;
+      color: blue;
+    }
+    button {
+      margin-top: 10px;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 목표 단계 -->
+<div class="target-input">
+  <label>목표 단계:</label>
+  <input type="number" id="targetStage" value="9" min="1" max="9" />
+  <span> (1~9 사이)</span>
+</div>
+
+<!-- 단계별 성공 확률 (%) 입력 -->
+<div class="prob-input">
+  <div><label>0강:</label><input type="number" id="p0" value="12" step="0.01" /> %</div>
+  <div><label>1강:</label><input type="number" id="p1" value="10" step="0.01" /> %</div>
+  <div><label>2강:</label><input type="number" id="p2" value="7"  step="0.01" /> %</div>
+  <div><label>3강:</label><input type="number" id="p3" value="5"  step="0.01" /> %</div>
+  <div><label>4강:</label><input type="number" id="p4" value="4"  step="0.01" /> %</div>
+  <div><label>5강:</label><input type="number" id="p5" value="3"  step="0.01" /> %</div>
+  <div><label>6강:</label><input type="number" id="p6" value="2"  step="0.01" /> %</div>
+  <div><label>7강:</label><input type="number" id="p7" value="2"  step="0.01" /> %</div>
+  <div><label>8강:</label><input type="number" id="p8" value="1"  step="0.01" /> %</div>
+</div>
+
+<button id="startBtn">시뮬레이션 시작</button>
+<button id="stopBtn" disabled>중단</button>
+
+<div id="log"></div>
+
+<script>
+  // --- 전역 변수들 ---
+  let intervalId = null;       // setInterval 제어용
+  let currentStage = 0;        // 현재 강화 단계
+  let attemptCount = 0;        // 시도 횟수
+  let target = 9;             // 목표 단계
+  let probList = [];          // 각 단계별 성공 확률(0~1)
+  const logArea = document.getElementById('log');
+
+  // --- 강화 시도 로직 (1회) ---
+  function enhanceOneTry(stage, successProb) {
+    // 무작위 확률 추첨
+    const rand = Math.random();
+    if (rand < successProb) {
+      // 성공 -> 단계 +1
+      return { success: true, newStage: stage + 1 };
+    } else {
+      // 실패
+      if (stage >= 4) {
+        // 4강 이상이면 1단계 하락, 단 3강 이하로는 내려가지 않음
+        const newStage = Math.max(3, stage - 1);
+        return { success: false, newStage: newStage };
+      } else {
+        // 0~3강이면 하락 없음
+        return { success: false, newStage: stage };
+      }
+    }
+  }
+
+  // --- 진행 상황을 logArea에 출력 ---
+  function addLog(message, isHighlight = false) {
+    const p = document.createElement('div');
+    p.textContent = message;
+    if (isHighlight) {
+      p.classList.add('highlight');
+    }
+    logArea.appendChild(p);
+    // 스크롤 자동 하단 이동
+    logArea.scrollTop = logArea.scrollHeight;
+  }
+
+  // --- 한 번 시도(애니메이션용) ---
+  function doOneStep() {
+    attemptCount++;
+    const result = enhanceOneTry(currentStage, probList[currentStage]);
+    const successFailText = result.success ? "성공" : "실패";
+    const oldStage = currentStage;
+    currentStage = result.newStage;
+
+    addLog(
+      `시도 #${attemptCount}: (현재 ${oldStage}강) → ${successFailText} → 새 단계: ${currentStage}강`
+    );
+
+    // 목표 단계 도달하면 종료
+    if (currentStage >= target) {
+      addLog(
+        `\n목표 ${target}강에 도달했습니다! 총 시도: ${attemptCount}회`,
+        true
+      );
+      // 반복 중단
+      clearInterval(intervalId);
+      intervalId = null;
+      // 버튼 상태 갱신
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    }
+  }
+
+  // --- 시뮬레이션 시작 ---
+  function startSimulation() {
+    // 초기화
+    clearInterval(intervalId);
+    intervalId = null;
+    logArea.innerHTML = "";  // 이전 로그 삭제
+
+    // 사용자 입력값 읽기
+    target = parseInt(document.getElementById('targetStage').value, 10);
+    if (isNaN(target) || target < 1 || target > 9) {
+      alert("목표 단계(1~9)를 올바르게 입력해주세요!");
+      return;
+    }
+
+    // 단계별 성공 확률(%) 읽기
+    const p0 = parseFloat(document.getElementById('p0').value) / 100;
+    const p1 = parseFloat(document.getElementById('p1').value) / 100;
+    const p2 = parseFloat(document.getElementById('p2').value) / 100;
+    const p3 = parseFloat(document.getElementById('p3').value) / 100;
+    const p4 = parseFloat(document.getElementById('p4').value) / 100;
+    const p5 = parseFloat(document.getElementById('p5').value) / 100;
+    const p6 = parseFloat(document.getElementById('p6').value) / 100;
+    const p7 = parseFloat(document.getElementById('p7').value) / 100;
+    const p8 = parseFloat(document.getElementById('p8').value) / 100;
+    probList = [p0, p1, p2, p3, p4, p5, p6, p7, p8];
+
+    // 시도 횟수, 현재 단계 리셋
+    currentStage = 0;
+    attemptCount = 0;
+
+    // 시작 로그
+    addLog(`--- 목표: ${target}강 도달 시뮬레이션 시작 ---\n`, true);
+
+    // 일정 간격(예: 200ms)으로 1회씩 시도
+    intervalId = setInterval(() => {
+      doOneStep();
+    }, 200);
+
+    // 버튼 상태 제어
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+  }
+
+  // --- 중단 (사용자가 수동으로 멈추기) ---
+  function stopSimulation() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+      addLog(`\n사용자가 중단했습니다. (현재 ${currentStage}강, 시도: ${attemptCount}회)`, true);
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    }
+  }
+
+  // --- 버튼 이벤트 연결 ---
+  document.getElementById('startBtn').addEventListener('click', startSimulation);
+  document.getElementById('stopBtn').addEventListener('click', stopSimulation);
+</script>
+
+</body>
+</html>
