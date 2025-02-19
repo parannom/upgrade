@@ -208,9 +208,9 @@ document.getElementById('startBtn').addEventListener('click', () => {
   output += `◆ 단계별 성공 확률: [0강→${(p0*100).toFixed(2)}%, 1강→${(p1*100).toFixed(2)}%, ... 8강→${(p8*100).toFixed(2)}%]\n\n`;
 
   if (expected === Infinity) {
-    output += `● 이론적 기대 시도 횟수: ∞ (어떤 단계 성공 확률이 0%이므로 계산상 무한대)\n\n`;
+    output += `● 기대 시도 횟수: ∞ \n\n`;
   } else {
-    output += `● 이론적(마코프 체인) 기대 시도 횟수(E[0]): 약 ${expected.toFixed(2)} 회\n\n`;
+    output += `● 기대 시도 횟수: 약 ${expected.toFixed(2)} 회\n\n`;
   }
 
   output += `=== 시뮬레이션 ${simCount}회 결과 ===\n`;
